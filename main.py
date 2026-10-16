@@ -75,7 +75,7 @@ def webhook(body: dict):
         output = "모르는 명령이에요. /help 를 보내 보세요."
     else:
         if study.get_mode(chat_id) == "study":
-            output = study.study_answer(text)
+            output = study.study_answer(chat_id, text)
         else:
             found = places.search(text, PLACES)
             system = build_prompt_v3(weather_text(), db.recent_meals(conn), found)
