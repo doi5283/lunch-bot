@@ -6,6 +6,8 @@ import db
 import ai
 # from prompts import SYSTEM_PROMPT_V1
 import places
+import study
+
 from prompts import build_prompt_v3
 
 conn = db.connect()
@@ -40,8 +42,14 @@ def webhook(body: dict):
     # /로 시작하면 명령, 아니면 메아리
     if text == "/start":
         output = "안녕하세요! 오늘 뭐 먹지? 봇입니다. /help 로 사용법을 보세요."
+    elif text == "/study":
+        study.set_mode(chat_id, "study")
+        output = "공부 모드예요! git, 터미널, 파이썬을 물어보세요. 점심 모드로 돌아가려면 /lunchmode"
+    elif text == "/lunchmode":
+        study.set_mode(chat_id, "lunch")
+        output = "점심 추천 모드로 돌아왔어요!"
     elif text == "/help":
-        output = "/lunch 점심 메뉴 하나\n/lotto 로또 번호 6개\n/weather 지금 캠퍼스 날씨\n /lotto, /weather, /ate 메뉴, /history"
+        output = "/lunch 점심 메뉴 하나\n/lotto 로또 번호 6개\n/weather 지금 캠퍼스 날씨\n /ate 메뉴, /history, /study 공부 모드, /lunchmode 점심 모드"
     elif text == "/lunch":
         output = random.choice(MENUS)
     elif text == "/lotto":
@@ -66,9 +74,12 @@ def webhook(body: dict):
     elif text.startswith("/"):
         output = "모르는 명령이에요. /help 를 보내 보세요."
     else:
-        found = places.search(text, PLACES)
-        system = build_prompt_v3(weather_text(), db.recent_meals(conn), found)
-        output = ai.ask_ai(system, text)
+        if study.get_mode(chat_id) == "study":
+            output = study.study_answer(text)
+        else:
+            found = places.search(text, PLACES)
+            system = build_prompt_v3(weather_text(), db.recent_meals(conn), found)
+            output = ai.ask_ai(system, text)
 
     requests.get(f"{URL}/sendMessage", params={"chat_id": chat_id, "text": output})  # 답장 보내기
     print("[보냄]", output)
