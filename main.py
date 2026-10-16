@@ -2,8 +2,11 @@
 import json
 import os
 import random
-
 import db
+import ai
+# from prompts import SYSTEM_PROMPT_V1
+import places
+from prompts import build_prompt_v3
 
 conn = db.connect()
 
@@ -13,10 +16,12 @@ from fastapi import FastAPI
 
 from weather import weather_text
 
+
 load_dotenv()
 URL = f"https://api.telegram.org/bot{os.getenv('TELEGRAM_TOKEN')}"
 
 MENUS = ["라면", "햄버거", "마라탕", "샐러드"]
+PLACES = places.load_places("places_sample.csv")
 
 app = FastAPI()  # 웹 서버 앱
 
@@ -36,7 +41,7 @@ def webhook(body: dict):
     if text == "/start":
         output = "안녕하세요! 오늘 뭐 먹지? 봇입니다. /help 로 사용법을 보세요."
     elif text == "/help":
-        output = "/lunch 점심 메뉴 하나\n/lotto 로또 번호 6개\n/weather 지금 캠퍼스 날씨\n그 밖의 말은 따라 해요\n /lotto, /weather, /ate 메뉴, /history"
+        output = "/lunch 점심 메뉴 하나\n/lotto 로또 번호 6개\n/weather 지금 캠퍼스 날씨\n /lotto, /weather, /ate 메뉴, /history"
     elif text == "/lunch":
         output = random.choice(MENUS)
     elif text == "/lotto":
@@ -61,7 +66,9 @@ def webhook(body: dict):
     elif text.startswith("/"):
         output = "모르는 명령이에요. /help 를 보내 보세요."
     else:
-        output = text  # 메아리
+        found = places.search(text, PLACES)
+        system = build_prompt_v3(weather_text(), db.recent_meals(conn), found)
+        output = ai.ask_ai(system, text)
 
     requests.get(f"{URL}/sendMessage", params={"chat_id": chat_id, "text": output})  # 답장 보내기
     print("[보냄]", output)
